@@ -37,13 +37,16 @@ shift $(($OPTIND - 1))
 
 if [ $verbose = false ] ; then
     echo -en '\033['$debugLines'A'
+    debugLines=0
     # echo -e 'test\ntest\ntest\ntest\ntest\ntest\ntest\ntest\n'
 fi
 
 # Initialize values
 # Game window dimensions
 numRows=$1
+numRows=$(((numRows > LINES) | (numRows == 0) ? LINES - debugLines - 5 : numRows))
 numCols=$2
+numCols=$(((numCols > COLUMNS) | (numCols == 0) ? COLUMNS / 2 - 1: numCols))
 gridSize=$((numRows * numCols))
 vPrint 1 $numRows rows X $numCols cols = $gridSize cells
 # Game time params. Clock in milliseconds
