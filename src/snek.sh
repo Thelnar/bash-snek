@@ -40,13 +40,13 @@ if [ $verbose = false ] ; then
     debugLines=0
     # echo -e 'test\ntest\ntest\ntest\ntest\ntest\ntest\ntest\n'
 fi
-
+# Args: numRows numCols maxFood
 # Initialize values
 # Game window dimensions
 numRows=$1
-numRows=$(((numRows > LINES) | (numRows == 0) ? LINES - debugLines - 5 : numRows))
+numRows=$(((numRows > LINES) | (numRows <= 0) ? LINES - debugLines - 5 : numRows))
 numCols=$2
-numCols=$(((numCols > COLUMNS) | (numCols == 0) ? COLUMNS / 2 - 1: numCols))
+numCols=$(((numCols > COLUMNS) | (numCols <= 0) ? COLUMNS / 2 - 1: numCols))
 gridSize=$((numRows * numCols))
 vPrint 1 $numRows rows X $numCols cols = $gridSize cells
 # Game time params. Clock in milliseconds
@@ -92,6 +92,9 @@ function player_loc(){
 }
 # Food info
 # Food is represented by a -1
+curFood=0
+maxFood=$3
+maxFood=$((numRows <= 0 ? 3 : maxFood))
 foodX=0
 foodY=0
 function food_loc(){
@@ -100,8 +103,34 @@ function food_loc(){
 function spawn_food(){
 foodX=$((RANDOM % numCols))
 foodY=$((RANDOM % numRows))
-vPrint 4 'food ' $foodX ', ' $foodY
-gameState[$(food_loc)]='-1'
+# Placing food where there is already food ends the chain of food placing
+if (( (gameState[$(food_loc)] != -1) & RANDOM % maxFood >= curFood)) ; then
+    if (((foodX == playerX & foodY == playerY))) ; then
+    # Food spawning on the playerloc will immediately get overwritten by the head, magically disappearing
+    # This shoves the food in front of the player's face in that case
+        case $playerDir in
+        up)
+            foodX=$((foodX % numCols))
+            foodY=$(((foodY + numRows - 1) % numRows)) ;;
+        down)
+            foodX=$((foodX % numCols))
+            foodY=$(((foodY + 1) % numRows)) ;;
+        left)
+            foodX=$(((foodX + numCols - 1) % numCols))
+            foodY=$((foodY % numRows)) ;;
+        right)
+            foodX=$(((foodX + 1) % numCols))
+            foodY=$((foodY % numRows)) ;;
+        esac
+    fi
+    vPrint 4 'food ' $foodX ', ' $foodY
+    if (( gameState[$(food_loc)] != -1 )) ; then
+        # Only increment curFood if the food is put in a place where food isn't already present
+        curFood=$((curFood + 1))
+    fi
+    gameState[$(food_loc)]='-1'
+    spawn_food
+fi
 }
 # Game State
 gameState=()
@@ -212,11 +241,11 @@ function advance_state(){
     # done
     # print_state
     # Update blink value if necessary
-    vPrint 6 $((frameNo % blinkMult))
+    # vPrint 6 $((frameNo % blinkMult))
     if [[ $((frameNo % blinkMult)) = 0 ]]; then
         blink=$((blink${blinkOp}1))
-        vPrint 7 'Blink ' $blink
-        vPrint 8 'BlinkOp ' $blinkOp
+        # vPrint 7 'Blink ' $blink
+        # vPrint 8 'BlinkOp ' $blinkOp
         case $blink in
             1)
                 blinkOp='+' ;;
@@ -249,6 +278,7 @@ function advance_state(){
             -1)
                 ((playerLen++))
                 ((score++))
+                curFood=$((curFood - 1))
                 playerMult=$((startingPlayerMult - score / 10))
                 playerMult=$((playerMult<1 ? 1 : playerMult))
                 spawn_food ;;
@@ -259,6 +289,7 @@ function advance_state(){
                 stty "$old_tty_settings"      # Restore old settings.
                 exit 0 ;;
         esac
+        vPrint 6 'curFood ' $curFood ' '
         vPrint 9 'gameState ' ${gameState[$(player_loc)]} ' '
         # Head gets one extra because it will immediately be decremented
         gameState[$(player_loc)]=$((playerLen + 1))
