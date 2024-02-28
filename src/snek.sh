@@ -94,7 +94,7 @@ function player_loc(){
 # Food is represented by a -1
 curFood=0
 maxFood=$3
-maxFood=$((numRows <= 0 ? 3 : maxFood))
+maxFood=$((maxFood <= 0 ? 3 : maxFood))
 foodX=0
 foodY=0
 function food_loc(){
@@ -290,7 +290,7 @@ function advance_state(){
                 exit 0 ;;
         esac
         vPrint 6 'curFood ' $curFood ' '
-        vPrint 9 'gameState ' ${gameState[$(player_loc)]} ' '
+        # vPrint 9 'gameState ' ${gameState[$(player_loc)]} ' '
         # Head gets one extra because it will immediately be decremented
         gameState[$(player_loc)]=$((playerLen + 1))
     else
@@ -313,6 +313,7 @@ function advance_state(){
     done
     print_state
     frameNo=$(( (frameNo % (playerMult * blinkMult)) + 1 ))
+    vPrint 2 player $playerX , $playerY, $playerDir
 }
 
 old_tty_settings=$(stty -g)   # Save old settings.
