@@ -13,6 +13,7 @@ for (( i = 0; i < $debugLines; i++ )) ; do
     echo -en '\n'
 done
 verbose=false
+headless=false
 # Handle flags
 function vPrint(){
     if [ $verbose = true ] ; then
@@ -21,11 +22,15 @@ function vPrint(){
         echo -e '\033['$((debugLines-$1-1))'B'
     fi
 }
-while getopts "v" opt; do
+while getopts "vs" opt; do
     case $opt in
         v)
             verbose=true
             vPrint 0 "verbose mode"
+            ;;
+        s)
+            headless=true
+            vPrint 1 "headless mode"
             ;;
         *)
             echo "invalid command"
@@ -48,7 +53,7 @@ numRows=$(((numRows > LINES) | (numRows <= 0) ? LINES - debugLines - 5 : numRows
 numCols=$2
 numCols=$(((numCols > COLUMNS) | (numCols <= 0) ? COLUMNS / 2 - 1: numCols))
 gridSize=$((numRows * numCols))
-vPrint 1 $numRows rows X $numCols cols = $gridSize cells
+vPrint 2 $numRows rows X $numCols cols = $gridSize cells
 # Game time params. Clock in milliseconds
 clock=25
 frameNo=0
@@ -83,7 +88,7 @@ else
         playerDir='left'
     fi
 fi
-vPrint 2 player $playerX , $playerY, $playerDir
+vPrint 3 player $playerX , $playerY, $playerDir
 # vPrint 4 $(((playerX-(numCols/2))**2)) '<' $(((playerY-(numRows/2))**2)) " " $(((playerX-(numCols/2)) ** 2 < (playerY-(numRows / 2)) ** 2))
 # vPrint 5 "X " $((playerX)) '<' $((numCols / 2)) ' ' $((playerX < (numCols / 2)))
 # vPrint 6 "Y " $((playerY)) '<' $((numRows/2)) ' ' $((playerY < (numRows / 2)))
@@ -168,21 +173,23 @@ function print_line(){
 }
 
 function print_state() {
-screen=""
-screen+="$(print_line t)"
-screen+="$(printf '\u2551score:%-*s\u2551' $((numCols * 2 - 6)) ${score})"'\n'
-screen+="$(print_line m)"
-for (( row = 0; row < $numRows; row++ )); do
-    screen+='\u2551'
-    for (( col = 0; col < $numCols; col++ )); do
-        # printf " %03d " ${gameState[$((row * numCols + col))]}
-        screen+="${screenState[$((row * numCols + col))]}${screenState[$((row * numCols + col))]}"
+if [ $headless = false ] ; then
+    screen=""
+    screen+="$(print_line t)"
+    screen+="$(printf '\u2551score:%-*s\u2551' $((numCols * 2 - 6)) ${score})"'\n'
+    screen+="$(print_line m)"
+    for (( row = 0; row < $numRows; row++ )); do
+        screen+='\u2551'
+        for (( col = 0; col < $numCols; col++ )); do
+            # printf " %03d " ${gameState[$((row * numCols + col))]}
+            screen+="${screenState[$((row * numCols + col))]}${screenState[$((row * numCols + col))]}"
+        done
+        screen+='\u2551\n'
     done
-    screen+='\u2551\n'
-done
-screen+="$(print_line b)"
-screen+="\033[$((numRows+4))A\033[${numCols}D"
-echo -en "$screen"
+    screen+="$(print_line b)"
+    screen+="\033[$((numRows+4))A\033[${numCols}D"
+    echo -en "$screen"
+fi
 }
 
 # Initialize Game
@@ -203,7 +210,7 @@ function input_cycle() {
 function advance_state(){
     input_cycle
     vPrint 5 'Frame ' $frameNo
-    vPrint 3 keyPress "${keyPress}"
+    vPrint 6 keyPress "${keyPress}"
     case $keyPress in
         # Up Arrow `[A` will fall through to next case without checking that case's condition
         # Nevermind, arrow keys are too complicated and I'll worry about them later
@@ -289,7 +296,7 @@ function advance_state(){
                 stty "$old_tty_settings"      # Restore old settings.
                 exit 0 ;;
         esac
-        vPrint 6 'curFood ' $curFood ' '
+        vPrint 7 'curFood ' $curFood ' '
         # vPrint 9 'gameState ' ${gameState[$(player_loc)]} ' '
         # Head gets one extra because it will immediately be decremented
         gameState[$(player_loc)]=$((playerLen + 1))
@@ -313,7 +320,7 @@ function advance_state(){
     done
     print_state
     frameNo=$(( (frameNo % (playerMult * blinkMult)) + 1 ))
-    vPrint 2 player $playerX , $playerY, $playerDir
+    vPrint 3 player $playerX, $playerY, $playerDir'          '
 }
 
 old_tty_settings=$(stty -g)   # Save old settings.
